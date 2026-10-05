@@ -1,0 +1,57 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "llama-igpu": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "iGPU - Vega 8 (Qwen3.8-4B-Distill)",
+      "options": {
+        "baseURL": "http://127.0.0.1:8081/v1"
+      },
+      "models": {
+        "Qwen3.8-4B-Distill-Q4_K_M.gguf": {
+          "name": "Qwen3.8-4B (iGPU)",
+          "tool_call": true,
+          "limit": {
+            "context": 32768,
+            "output": 8000
+          }
+        }
+      }
+    },
+    "llama-cpu": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "CPU - Ryzen 7 5700G (Qwen3.8-2B-Distill)",
+      "options": {
+        "baseURL": "http://127.0.0.1:8082/v1"
+      },
+      "models": {
+        "Qwen3.8-2B-Distill-Q4_K_M.gguf": {
+          "name": "Qwen3.8-2B (CPU, light chat)",
+          "limit": {
+            "context": 32768,
+            "output": 8000
+          }
+        }
+      }
+    },
+    "tabby": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "dGPU - RX 7900 XT (Qwen3.8-27B EXL3 + DFlash2, TabbyAPI)",
+      "options": {
+        "baseURL": "http://127.0.0.1:11437/v1",
+        "apiKey": "{file:~/.llama-api-key}"
+      },
+      "models": {
+        "Qwen3.8-27B-EXL3-3.5bpw": {
+          "name": "Qwen3.8-27B (TabbyAPI)",
+          "tool_call": true,
+          "reasoning": true,
+          "limit": {
+            "context": 98304,
+            "output": 8192
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,1 @@
+[{"prompt_n": 12358, "prefill_tps": 1084.7, "decode_tps": 70.3, "gen_n": 300}, {"prompt_n": 24588, "prefill_tps": 1061.4, "decode_tps": 69.0, "gen_n": 300}, {"prompt_n": 49223, "prefill_tps": 958.1, "decode_tps": 63.3, "gen_n": 300}]

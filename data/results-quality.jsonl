@@ -1,0 +1,3 @@
+{"label": "Q-q8-nospec", "needle_ok": "6/6", "needle": [[28234, 0.1, true], [28204, 0.5, true], [28204, 0.9, true], [56665, 0.1, true], [56665, 0.5, true], [56665, 0.9, true]]}
+{"label": "Q-q8-spec", "needle_ok": "6/6", "needle": [[28234, 0.1, true], [28204, 0.5, true], [28204, 0.9, true], [56665, 0.1, true], [56665, 0.5, true], [56665, 0.9, true]]}
+{"label": "Q-q4-spec", "needle_ok": "6/6", "needle": [[28234, 0.1, true], [28204, 0.5, true], [28204, 0.9, true], [56665, 0.1, true], [56665, 0.5, true], [56665, 0.9, true]]}
