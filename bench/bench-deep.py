@@ -2,9 +2,11 @@
 """Decode/prefill speed at depth. usage: bench-deep.py LABEL -- <server args>"""
 import glob, json, os, signal, subprocess, sys, time, urllib.request
 HOME = os.path.expanduser("~"); PORT = 8192
+BENCH = os.environ.get("BENCH_DIR", os.path.dirname(os.path.abspath(__file__)))  # logs/, quality/ and results go here
+os.makedirs(f"{BENCH}/logs", exist_ok=True)
 argv = sys.argv[1:]; label = argv[0]; srv_args = argv[argv.index("--") + 1:]
 env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib")
-log = open(f"{HOME}/bench/logs/{label}.log", "w")
+log = open(f"{BENCH}/logs/{label}.log", "w")
 proc = subprocess.Popen([os.environ.get("BENCH_BIN", f"{HOME}/llama.cpp/build/bin/llama-server"), "--port", str(PORT), "--host", "127.0.0.1", *srv_args], stdout=log, stderr=subprocess.STDOUT, env=env, preexec_fn=os.setsid)
 def post(body):
     req = urllib.request.Request(f"http://127.0.0.1:{PORT}/v1/chat/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})

@@ -4,6 +4,8 @@ Rewrites ~/tabbyAPI/config.yml, restarts TabbyAPI, measures VRAM, then (a) decod
 (b) needle recall: a code hidden at 10% depth of the 90%-of-context prompt. Appends one JSON line to results-tabby-ctx.jsonl."""
 import json, os, re, subprocess, sys, time, urllib.request
 HOME = os.path.expanduser("~"); label, ctx, mode = sys.argv[1], int(sys.argv[2]), sys.argv[3]; dmode = sys.argv[4] if len(sys.argv) > 4 else "Q4"
+BENCH = os.environ.get("BENCH_DIR", os.path.dirname(os.path.abspath(__file__)))  # logs/, quality/ and results go here
+os.makedirs(f"{BENCH}/logs", exist_ok=True)
 URL = "http://127.0.0.1:11437"; KEY = open(f"{HOME}/.llama-api-key").read().strip(); MODEL = "Qwen3.8-27B-EXL3-3.5bpw"
 RS = "/opt/rocm/core-10.0/bin/rocm-smi"
 def vram():
@@ -22,11 +24,11 @@ s = re.sub(r"(?m)^(  cache_mode: ).*$", rf"\g<1>{mode}", s); s = re.sub(r"(?m)^(
 open(cfgp, "w").write(s)
 stop_tabby(); time.sleep(3)
 env = dict(os.environ, VIRTUAL_ENV=f"{HOME}/exllamav3-rocm/.venv-rocm", HIP_VISIBLE_DEVICES="0", PATH=f"{HOME}/exllamav3-rocm/.venv-rocm/bin:" + os.environ["PATH"])
-log = open(f"{HOME}/bench/logs/tabby-{label}.log", "w")
+log = open(f"{BENCH}/logs/tabby-{label}.log", "w")
 proc = subprocess.Popen([f"{HOME}/exllamav3-rocm/.venv-rocm/bin/python", "main.py", "--config", "config.yml"], cwd=f"{HOME}/tabbyAPI", env=env, stdout=log, stderr=subprocess.STDOUT)
 res = {"label": label, "ctx": ctx, "cache": mode, "draft_cache": dmode}
 def done(extra):
-    res.update(extra); print(json.dumps(res)); open(f"{HOME}/bench/results-tabby-ctx.jsonl", "a").write(json.dumps(res) + "\n"); sys.exit(0)
+    res.update(extra); print(json.dumps(res)); open(f"{BENCH}/results-tabby-ctx.jsonl", "a").write(json.dumps(res) + "\n"); sys.exit(0)
 t0 = time.time()
 while True:
     if proc.poll() is not None: done({"result": "FAIL", "error": "tabby exited during load (see log)"})

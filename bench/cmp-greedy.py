@@ -1,5 +1,5 @@
 import json, os, sys
-a, b = (json.load(open(os.path.expanduser(f"~/bench/quality/{x}.json"))) for x in sys.argv[1:3])
+a, b = (json.load(open(os.path.join(os.environ.get("BENCH_DIR", os.path.dirname(os.path.abspath(__file__))), "quality", f"{x}.json"))) for x in sys.argv[1:3])
 for k in a["greedy"]:
     x, y = a["greedy"][k]["text"], b["greedy"][k]["text"]
     n = next((i for i, (c, d) in enumerate(zip(x, y)) if c != d), None)

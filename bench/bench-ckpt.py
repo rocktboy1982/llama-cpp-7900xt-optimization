@@ -4,11 +4,13 @@ Step 1 sends a ~10k-token prompt; steps 2-5 append the previous reply plus a ~60
 Reports per step: tokens re-processed (prompt_n), prompt time (ms), total wall time. Lower is better."""
 import json, os, signal, subprocess, sys, time, urllib.request
 HOME = os.path.expanduser("~"); PORT = 8191
+BENCH = os.environ.get("BENCH_DIR", os.path.dirname(os.path.abspath(__file__)))  # logs/, quality/ and results go here
+os.makedirs(f"{BENCH}/logs", exist_ok=True)
 argv = sys.argv[1:]; label = argv[0]; sep = argv.index("--")
 opts, srv_args = argv[1:sep], argv[sep + 1:]
 binpath = opts[opts.index("--bin") + 1] if "--bin" in opts else f"{HOME}/llama.cpp/build/bin/llama-server"
 env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib")
-log = open(f"{HOME}/bench/logs/{label}.log", "w")
+log = open(f"{BENCH}/logs/{label}.log", "w")
 proc = subprocess.Popen([binpath, "--port", str(PORT), "--host", "127.0.0.1", *srv_args], stdout=log, stderr=subprocess.STDOUT, env=env, preexec_fn=os.setsid)
 def post(body):
     req = urllib.request.Request(f"http://127.0.0.1:{PORT}/v1/chat/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})

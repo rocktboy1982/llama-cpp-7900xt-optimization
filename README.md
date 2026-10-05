@@ -29,13 +29,12 @@ What moved the needle on llama.cpp (single model, same GPU): **no speculation 37
 ## Quick start
 
 ```bash
-# llama.cpp (details and Windows notes: docs/llama-cpp-guide.md)
-git clone https://github.com/ggml-org/llama.cpp && cd llama.cpp && git checkout 2ca15f540
-R=/opt/rocm/core-10.0
-HIPCXX=$R/llvm/bin/clang HIP_PATH=$R CMAKE_PREFIX_PATH=$R cmake -S . -B build -DGGML_HIP=ON -DAMDGPU_TARGETS=gfx1100 -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j16 --target llama-server
-# model: ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF, file Swift-1.5-Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf (12.1 GB)
-# then run configs/linux/run-llama.sh
+# llama.cpp on Ubuntu 26.04 (details and manual steps: docs/llama-cpp-guide.md)
+git clone https://github.com/rocktboy1982/llama-cpp-7900xt-optimization && cd llama-cpp-7900xt-optimization
+scripts/linux/install-rocm10.sh --dry-run --with-vulkan   # review, then run without --dry-run
+scripts/linux/build-llama.sh                              # llama.cpp @ 2ca15f540 (HIP + Vulkan)
+scripts/linux/download-model.sh all                       # Swift 27B + the two small models
+scripts/linux/install-launchers.sh && ~/run-llama.sh      # API key is generated into ~/.llama-api-key on first run
 ```
 
 TabbyAPI: see [docs/tabbyapi-guide.md](docs/tabbyapi-guide.md) (clone `bsvinay/exllamav3-rocm`, run its `setup_env.sh`, `build.sh`, `download_models.sh`, `install_tabbyapi.sh`, then `run_tabbyapi.sh`). Only one engine can use the 20 GB card at a time.
@@ -49,12 +48,14 @@ docs/
   benchmarks.md             every test, method, result and caveat
   turboquant.md             TurboQuant KV-cache port: what changed, tests, results
   windows-original-guide.md the earlier Windows guide (fork + patches, ROCm 7.2), kept for reference
+scripts/linux/              install-rocm10.sh, build-llama.sh, download-model.sh, install-launchers.sh
 configs/
   linux/                    run-llama.sh, start-llama.sh, start-tabbyapi.sh (desktop launchers)
   windows/                  start-llama-server.bat (untested)
   tabbyapi/config.yml       active TabbyAPI config (98,304 tokens, 8-bit cache)
   opencode/opencode.json    opencode providers (no secrets; the key is read from a file)
 bench/                      the benchmark harness (Python, standard library only)
+  runners/                  the batch scripts that produced the tables (copy common.env.example to common.env)
 data/                       raw result files (JSON lines) for every table
 patches/
   turboquant-on-upstream-2ca15f540.patch   TurboQuant on current upstream llama.cpp
@@ -62,7 +63,7 @@ patches/
 
 ## Reproducing the numbers
 
-`bench/bench.py` (3 workloads), `bench-pp.py` (warm-up + 3 runs), `bench-deep.py` and `bench-api-deep.py` (decode at depth), `bench-tools.py` (7-case tool-calling suite), `bench-quality.py` (needle recall and greedy diff), `bench-api.py` (any OpenAI-compatible server) and `tabby-ctx.py` (TabbyAPI context sweep). They start and stop the server themselves where noted in each file's docstring and write JSON lines like those in `data/`. Paths assume llama.cpp in `~/llama.cpp` and models in `~/models`; edit the constants at the top.
+Run `bench/runners/run-ngram.sh` and friends (after copying `runners/common.env.example` to `runners/common.env`), or call the scripts directly. `BENCH_DIR` (default: the `bench/` folder) holds `logs/`, `quality/` and the result files. `bench/bench.py` (3 workloads), `bench-pp.py` (warm-up + 3 runs), `bench-deep.py` and `bench-api-deep.py` (decode at depth), `bench-tools.py` (7-case tool-calling suite), `bench-quality.py` (needle recall and greedy diff), `bench-api.py` (any OpenAI-compatible server) and `tabby-ctx.py` (TabbyAPI context sweep). They start and stop the server themselves where noted in each file's docstring and write JSON lines like those in `data/`. Paths assume llama.cpp in `~/llama.cpp` and models in `~/models`; edit the constants at the top.
 
 ## Limits of this work
 

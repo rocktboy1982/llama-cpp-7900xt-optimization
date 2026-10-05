@@ -4,10 +4,12 @@
  greedy : temp 0 outputs for 3 prompts (incl. one ~24k tokens) -> saved to quality/LABEL.json for diffing"""
 import glob, json, os, random, signal, subprocess, sys, time, urllib.request
 HOME = os.path.expanduser("~"); PORT = 8194
+BENCH = os.environ.get("BENCH_DIR", os.path.dirname(os.path.abspath(__file__)))  # logs/, quality/ and results go here
+os.makedirs(f"{BENCH}/logs", exist_ok=True)
 argv = sys.argv[1:]; label = argv[0]; srv = argv[argv.index("--")+1:]
 env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib")
-os.makedirs(f"{HOME}/bench/quality", exist_ok=True)
-log = open(f"{HOME}/bench/logs/{label}.log", "w")
+os.makedirs(f"{BENCH}/quality", exist_ok=True)
+log = open(f"{BENCH}/logs/{label}.log", "w")
 proc = subprocess.Popen([f"{HOME}/llama.cpp/build/bin/llama-server", "--port", str(PORT), "--host", "127.0.0.1", *srv], stdout=log, stderr=subprocess.STDOUT, env=env, preexec_fn=os.setsid)
 def post(b):
     r = urllib.request.Request(f"http://127.0.0.1:{PORT}/v1/chat/completions", json.dumps(b).encode(), {"Content-Type": "application/json"})
@@ -40,5 +42,5 @@ try:
 finally:
     try: os.killpg(proc.pid, signal.SIGTERM); proc.wait(timeout=30)
     except Exception: os.killpg(proc.pid, signal.SIGKILL)
-json.dump(res, open(f"{HOME}/bench/quality/{label}.json", "w"))
+json.dump(res, open(f"{BENCH}/quality/{label}.json", "w"))
 print(json.dumps({"label": label, "needle_ok": f"{sum(n['ok'] for n in res['needle'])}/{len(res['needle'])}", "needle": [(n['tokens'], n['pos'], n['ok']) for n in res['needle']]}))

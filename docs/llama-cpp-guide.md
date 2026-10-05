@@ -23,6 +23,20 @@ What did **not** help (do not retry): HIP graphs, the `-mllvm --amdgpu-unroll-th
 
 ## 2. Linux (Ubuntu 26.04)
 
+### Scripted setup (recommended)
+
+Four scripts in [`../scripts/linux`](../scripts/linux) automate sections 2.1-2.4. Run them in order from a clone of this repository:
+
+```bash
+scripts/linux/install-rocm10.sh --with-vulkan     # ROCm 10 (gfx1100 packages only) + Vulkan; add --dry-run to preview, --purge-old to remove ROCm 7.x
+scripts/linux/build-llama.sh                      # llama.cpp @ 2ca15f540, HIP + Vulkan; add --turboquant for the patched HIP-only build
+scripts/linux/download-model.sh all               # Swift 27B (12.1 GB), 4B (2.8 GB), 2B (1.3 GB): resumable, size-checked, MTP head verified
+scripts/linux/install-launchers.sh                # ~/run-llama.sh, ~/start-llama.sh, ~/start-tabbyapi.sh + desktop shortcuts
+~/run-llama.sh
+```
+
+What was verified for these scripts (2026-10-05, on the machine the benchmarks came from, where ROCm and the models were already installed): `build-llama.sh` ran end to end in a fresh clone and produced working binaries; `build-llama.sh --turboquant --check-only` confirmed the patch applies; `download-model.sh` skip/size/MTP-head checks ran against the real files (and caught and fixed a bug); `install-launchers.sh` ran in a throwaway home directory; `install-rocm10.sh` was run with `--dry-run` and its package names were checked with `apt install -s` (all valid, nothing further needed on that machine). **`install-rocm10.sh` was not run for real on a clean system**, so treat the first run on a fresh install as untested and read its `--dry-run` output first.
+
 ### 2.1 Install ROCm 10.0.0
 
 Follow AMD's [install page](https://rocm.docs.amd.com/en/latest/install/rocm.html). Remove ROCm 7.x first (`apt remove --purge` the old `rocm-*` and `amdgpu-install` packages). AMD's page also lists downloading an `amdgpu-install` package; that step was **not** run here, the kernel's own `amdgpu` driver was used and only AMD's package repository was registered:

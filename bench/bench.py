@@ -10,6 +10,8 @@ Workloads (first run of each config only; ngram-mod remembers repeats):
 import json, os, signal, subprocess, sys, time, urllib.request
 
 HOME = os.path.expanduser("~")
+BENCH = os.environ.get("BENCH_DIR", os.path.dirname(os.path.abspath(__file__)))  # logs/, quality/ and results go here
+os.makedirs(f"{BENCH}/logs", exist_ok=True)
 PORT = 8190
 argv = sys.argv[1:]
 label = argv[0]
@@ -20,7 +22,7 @@ if "--bin" in opts:
     binpath = opts[opts.index("--bin") + 1]
 
 env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib")
-log = open(f"{HOME}/bench/logs/{label}.log", "w")
+log = open(f"{BENCH}/logs/{label}.log", "w")
 proc = subprocess.Popen([binpath, "--port", str(PORT), "--host", "127.0.0.1", *srv_args],
                         stdout=log, stderr=subprocess.STDOUT, env=env, preexec_fn=os.setsid)
 
