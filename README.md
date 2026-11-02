@@ -6,7 +6,7 @@ Tested, benchmarked recipes for running **Qwen3.8-27B** and the **125B Qwen3.8-F
 |---|---|---|
 | [**llama.cpp guide**](docs/llama-cpp-guide.md) (Linux tested, Windows adapted) | upstream llama.cpp, ROCm/HIP, MTP + ngram speculative decoding | code edits (~175 t/s), contexts up to 131k-262k |
 | [**TabbyAPI guide**](docs/tabbyapi-guide.md) | ExLlamaV3-ROCm + TabbyAPI, DFlash2 speculative decoding | agent loops with long prompts (60-70 t/s at 12-50k tokens) |
-| [**Avalon guide**](docs/avalon-guide.md) | [Avalon](https://github.com/freriadoc/Avalon) (llama.cpp fork), experts in system RAM, MTP | a 125B MoE on 20 GB: ~100 t/s decode, ~1,800 t/s prefill, 262k context |
+| [**Avalon guide**](docs/avalon-guide.md) | [Avalon](https://github.com/freriadoc/Avalon) (llama.cpp fork), experts in system RAM, MTP | a 125B MoE on 20 GB: ~100 t/s decode (~170-180 on edits), ~1,800 t/s prefill, 262k context |
 
 All numbers, methods and caveats: [**docs/benchmarks.md**](docs/benchmarks.md). The TurboQuant port: [**docs/turboquant.md**](docs/turboquant.md).
 
@@ -35,6 +35,7 @@ Same machine (now 57 GB RAM), ROCm 10.0.0, Avalon `a91372e`, IQ3_KS (~89 GiB, ex
 |---|---:|
 | Decode, short prompts (Avalon `bench.py`, median of 2nd pass / best) | **100.3** / 115.2 t/s |
 | Decode, short chat (Strata's `strata_bench.py`, median) | 96.4 t/s |
+| Decode, code edits: MTP only / **MTP + `ngram-simple`** (median) | 118 / **168-181 t/s** |
 | Prefill, fresh 16K / 32K prompt | **1,771 / 1,805 t/s** (first token 8.9 / 17.5 s) |
 | Agent session (4 tools, 5 growing turns to ~14.5k tokens), warm | first token ~4.2 s per turn, decode 66-72 t/s |
 | Same flags on Windows earlier | 62-72 t/s decode |

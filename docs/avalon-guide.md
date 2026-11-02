@@ -1,6 +1,6 @@
 # Avalon on an RX 7900 XT: Qwen3.8-Flash-Next (125B MoE) at ~100 t/s
 
-Goal: serve **Qwen3.8-Flash-Next** (125B mixture-of-experts, 512 experts, 48 layers) from a single RX 7900 XT (20 GB) with [**Avalon**](https://github.com/freriadoc/Avalon), a llama.cpp fork that keeps the dense weights, the KV cache and a cache of the hottest experts on the GPU and the rest of the experts in system RAM. With its MTP draft head it decodes at about **100 t/s** on short prompts and reads prompts at about **1,750 t/s**, with a 262,144-token context.
+Goal: serve **Qwen3.8-Flash-Next** (125B mixture-of-experts, 512 experts, 48 layers) from a single RX 7900 XT (20 GB) with [**Avalon**](https://github.com/freriadoc/Avalon), a llama.cpp fork that keeps the dense weights, the KV cache and a cache of the hottest experts on the GPU and the rest of the experts in system RAM. With its MTP draft head plus `ngram-simple` speculation it decodes at about **100 t/s** on new text and **~170-180 t/s** on code edits, and reads prompts at about **1,750 t/s**, with a 262,144-token context.
 
 Measured 2026-11-02 on the same box as the rest of this repository: Ryzen 7 5700G (PCIe Gen3), 57 GB RAM, RX 7900 XT, Ubuntu 26.04, Linux 7.0, **ROCm 10.0.0**, Avalon `a91372e`, model `freriadoc/Qwen3.8-Flash-Next-Avalon-GGUF` (IQ3_KS, 33 shards, ~89 GiB on disk).
 
@@ -8,7 +8,8 @@ Measured 2026-11-02 on the same box as the rest of this repository: Ryzen 7 5700
 |---|---|
 | Status | Everything below was run on that machine. The scripts were syntax-checked; `build-avalon.sh` was not run end to end in a fresh clone (the build it performs was) |
 | Engine | Avalon `a91372e`, built with ROCm 10 (Avalon's installer only accepts ROCm 7.x; see 2.2) |
-| Port | 11437 via a systemd user unit, so opencode / Copilot CLI need no change |
+| Port | 11437 via a systemd user unit (started at boot with lingering), so opencode / Copilot CLI need no change |
+| Speculation | `--spec-type ngram-simple,draft-mtp` (Avalon's default command uses `draft-mtp` only; see 1.4) |
 
 ## 1. Results
 
@@ -41,7 +42,23 @@ Run 1 of the agent session is the cold start: 89 GiB of experts do not fit in 57
 
 Over 17 requests from opencode and Copilot CLI before a reboot: decode median ~78 t/s (up to 129), prefill median ~1,400 t/s on prompts over 2k tokens, largest prompt 76,102 tokens with no error. Agent prompts are long, so real decode sits below the short-prompt benchmark.
 
-### 1.4 What did not change anything
+### 1.4 `ngram-simple` next to MTP (2026-11-03)
+
+Taken from this repository's llama.cpp setup, where MTP + `ngram-simple` raised code edits from 98 to 175 t/s on the 27B. Avalon accepts the same list: `--spec-type ngram-simple,draft-mtp`. Two workloads, back to back, same server flags otherwise: Avalon's `bench.py` (new text) and a code-edit test (return a 180-line Python file with a rename, or with docstrings added; 1,500 tokens, 2 rounds).
+
+| Workload | `draft-mtp` (Avalon default) | `ngram-simple,draft-mtp` |
+|---|---:|---:|
+| Code edits, median (2nd round) | 118.0 t/s (118.3) | **168.1 t/s (180.9)**, range 125-194 |
+| Draft tokens accepted on edits | 998-999 of ~1,000 | 1,442-1,462 of 1,510-1,561 |
+| New text, `bench.py` 2nd pass median | 95.2 t/s | 92.3 t/s |
+
+* On edits MTP alone is already right almost every time; what limits it is the draft length (`--spec-draft-n-max 2`). `ngram-simple` drafts long runs copied from the prompt (up to 48 tokens), so a correct guess moves the output much further per step.
+* New text is unchanged within run-to-run noise (about ±3-5 t/s). The first `bench.py` pass of the ngram run (74.3 t/s) was right after a server restart and is not counted.
+* The edit test flatters ngram speculation (the answer is mostly a copy of the prompt), but agents rewriting files do exactly that. The launcher in this repository uses `ngram-simple,draft-mtp`.
+
+Raw data: [`../data/results-avalon-bench.txt`](../data/results-avalon-bench.txt).
+
+### 1.5 What did not change anything
 
 | Tried | Result | Why |
 |---|---|---|
@@ -109,6 +126,11 @@ The launcher runs Avalon's own command line unchanged and adds:
 
 * `LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib`: without it, `libhipblas.so.3` and `librocblas.so.5` are not found and `libamdhip64` resolves to a different copy in `/usr/lib`.
 * `HIP_VISIBLE_DEVICES=0`: ROCm 10 also lists the 5700G's Vega iGPU as `ROCm1` (29 GB of shared memory). The build has no kernels for it, and `--fit` would place layers on it.
+* `--spec-type ngram-simple,draft-mtp` instead of `draft-mtp` (1.4).
+
+Do not rerun Avalon's `install.sh` over an installed launcher: it rewrites `~/.local/bin/avalon-server` without these lines.
+
+**Start at boot.** A user unit normally starts only when you log in. To load Avalon at power-on, enable lingering once: `loginctl enable-linger $USER`. The unit's `ExecStartPre` waits up to 3 minutes for the model files, so a late-mounted model disk does not fail the start. To switch back to another server permanently: `systemctl --user disable --now avalon.service && systemctl --user enable --now <other>.service`.
 
 Loading takes about 80 s (`listening on` in the log). VRAM use is 19.7 GiB of 20. Only one server can hold the card: stop Strata, TabbyAPI or llama.cpp first (the unit's `Conflicts=` does that for Strata).
 
@@ -123,7 +145,7 @@ Loading takes about 80 s (`listening on` in the log). VRAM use is 19.7 GiB of 20
 Before the first output token the server reads the whole prompt (prefill); then it produces one token at a time (decode). With the experts in RAM, every expert a token needs has to cross PCIe to the GPU.
 
 * **Prefill** runs 9,536 tokens per batch (`-ub 9536`), so each expert copied over PCIe is used for thousands of tokens. That is why it is ~17x faster than decode. JashicTM found that 13,312 and above fail with `failed to allocate compute pp buffers`; 9,536 is the safe maximum.
-* **Decode** uses each copied expert for one token. Avalon's GPU expert cache, its expert prefetch and the MTP draft head (about 2.2-2.8 tokens per step) are what get it to ~100 t/s on PCIe Gen3.
+* **Decode** uses each copied expert for one token. Avalon's GPU expert cache, its expert prefetch and the MTP draft head (about 2.2-2.8 tokens per step) are what get it to ~100 t/s on PCIe Gen3. When the answer repeats text from the prompt (code edits), `ngram-simple` drafts whole runs of it, so each expensive step yields more tokens (1.4).
 * **The prompt cache matters most for agents.** With `--parallel 1` the processed conversation stays in the slot, so each turn reads only the new part: in the agent session above, 69 % of every follow-up prompt came from the cache and the first token took about 4 s instead of the 8-9 s a fresh 14k prompt would need.
 * **Toolchain**: the matrix work runs in rocBLAS/hipBLASLt, so the ROCm version can halve prefill (7.10a did). ROCm 10 is fine.
 * **Power**: JashicTM measured +3 % prefill at 274 W against the 246 W default (junction 79 °C). Not tried here.
@@ -133,4 +155,5 @@ Before the first output token the server reads the whole prompt (prefill); then 
 * One machine, one run per configuration; decode noise is about ±3-5 t/s between runs.
 * 57 GB of RAM holds about two thirds of the 89 GiB model, so the first session after a start is slow (1.1, 1.2). More RAM removes that.
 * Speed only: answer quality, tool-calling accuracy and long-context recall were not measured for Avalon. The llama.cpp/TabbyAPI numbers in the rest of this repository use a different (27B dense) model, so do not compare quality across them.
+* `ngram-simple` was measured with its default sizes (`--spec-ngram-simple-size-n 12`, `-size-m 48`); other sizes and the other ngram types (`ngram-mod`, `ngram-map-k`) were not tried.
 * Not tried: ROCm 7.2.4 on this box, `--parallel 2`, the 274 W power limit, decode at depth (30k-100k tokens), a TurboQuant port into Avalon.

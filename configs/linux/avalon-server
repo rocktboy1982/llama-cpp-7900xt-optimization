@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Avalon: Qwen3.8-Flash-Next (125B MoE) with MTP, 256k context, OpenAI-compatible API on http://${HOST:-127.0.0.1}:${PORT:-8080}
-# The flags are Avalon's own (its README "Run" section); only the ROCm 10 environment and the chat template are added.
+# The flags are Avalon's own (its README "Run" section) plus ngram-simple speculation next to MTP (code edits 118 -> ~170-180 t/s,
+# new text unchanged; docs/avalon-guide.md 1.4), the ROCm 10 environment and the chat template.
 # Extra arguments go to llama-server (e.g. -c 65536 for a smaller context). Install: cp to ~/.local/bin and chmod +x.
 AVALON_DIR="${AVALON_DIR:-$HOME/Avalon}"
 MODEL_DIR="${MODEL_DIR:-$HOME/Avalon-models/Qwen3.8-Flash-Next-Avalon-GGUF}"
@@ -16,7 +17,7 @@ TEMPLATE_ARGS=()
 cd "$MODEL_DIR" || exit 1
 exec "$AVALON_DIR/build/bin/llama-server" -m Qwen3.8-Flash-Next-Avalon-IQ3KS-00001-of-00033.gguf \
   -c 262144 -b 9536 -ub 9536 -fa on -ctk q8_0 -ctv q4_0 --jinja --parallel 1 \
-  -md MTP/mtp-Qwen3.8-Flash-Next-shared-IQ3K-IQ4NL-FR65k.gguf --spec-type draft-mtp \
+  -md MTP/mtp-Qwen3.8-Flash-Next-shared-IQ3K-IQ4NL-FR65k.gguf --spec-type ngram-simple,draft-mtp \
   --spec-draft-n-max 2 -ubd 256 -ctkd q8_0 -ctvd q8_0 \
   "${TEMPLATE_ARGS[@]}" \
   --host "${HOST:-127.0.0.1}" --port "${PORT:-8080}" "$@"
