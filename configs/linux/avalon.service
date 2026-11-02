@@ -1,0 +1,22 @@
+# systemd --user unit for Avalon on port 11437 (the port opencode / Copilot CLI point at).
+# Install: cp to ~/.config/systemd/user/, then: systemctl --user daemon-reload && systemctl --user enable --now avalon.service
+# Logs: ~/Avalon/avalon-service.log. If the model sits on a separately mounted disk, the ExecStartPre waits for it at boot.
+[Unit]
+Description=Avalon LLM server (port 11437)
+After=network-online.target
+# Avalon needs the whole 7900 XT: starting it stops any other server unit on the card (add yours here)
+Conflicts=strata.service
+
+[Service]
+Type=simple
+Environment=PORT=11437
+ExecStartPre=/bin/sh -c 'for i in $(seq 90); do [ -f "%h/Avalon-models/Qwen3.8-Flash-Next-Avalon-GGUF/Qwen3.8-Flash-Next-Avalon-IQ3KS-00033-of-00033.gguf" ] && exit 0; sleep 2; done; echo "model files not found" >&2; exit 1'
+ExecStart=%h/.local/bin/avalon-server
+Restart=on-failure
+RestartSec=20
+TimeoutStopSec=60
+StandardOutput=append:%h/Avalon/avalon-service.log
+StandardError=append:%h/Avalon/avalon-service.log
+
+[Install]
+WantedBy=default.target

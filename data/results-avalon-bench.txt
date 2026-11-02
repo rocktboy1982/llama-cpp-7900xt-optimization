@@ -1,0 +1,37 @@
+# Avalon bench.py runs (5 prompts x 2 passes, 512 tokens, temperature 0, thinking off), 2026-11-02
+## bench-linux.txt
+linux-avalon r1 p0: gen 512 tok @ 6.7 t/s, accept 268/484
+linux-avalon r1 p1: gen 512 tok @ 104.4 t/s, accept 326/370
+linux-avalon r1 p2: gen 290 tok @ 93.4 t/s, accept 166/246
+linux-avalon r1 p3: gen 390 tok @ 94.6 t/s, accept 215/348
+linux-avalon r1 p4: gen 512 tok @ 111.5 t/s, accept 331/358
+linux-avalon r2 p0: gen 507 tok @ 85.7 t/s, accept 275/464
+linux-avalon r2 p1: gen 512 tok @ 107.9 t/s, accept 324/374
+linux-avalon r2 p2: gen 299 tok @ 89.7 t/s, accept 165/266
+linux-avalon r2 p3: gen 345 tok @ 100.3 t/s, accept 200/288
+linux-avalon r2 p4: gen 512 tok @ 115.2 t/s, accept 332/356
+linux-avalon SUMMARY  first pass median 94.6 t/s | second pass median 100.3 t/s | best 115.2
+## bench-ctk-q4.txt
+ctk-q4 r1 p0: gen 512 tok @ 86.2 t/s, accept 267/488
+ctk-q4 r1 p1: gen 512 tok @ 111.7 t/s, accept 331/358
+ctk-q4 r1 p2: gen 294 tok @ 91.5 t/s, accept 165/256
+ctk-q4 r1 p3: gen 398 tok @ 96.0 t/s, accept 223/348
+ctk-q4 r1 p4: gen 512 tok @ 111.6 t/s, accept 331/360
+ctk-q4 r2 p0: gen 512 tok @ 87.8 t/s, accept 266/489
+ctk-q4 r2 p1: gen 512 tok @ 111.4 t/s, accept 323/376
+ctk-q4 r2 p2: gen 299 tok @ 97.4 t/s, accept 172/252
+ctk-q4 r2 p3: gen 400 tok @ 98.8 t/s, accept 227/346
+ctk-q4 r2 p4: gen 512 tok @ 114.2 t/s, accept 331/359
+ctk-q4 SUMMARY  first pass median 96.0 t/s | second pass median 98.8 t/s | best 114.2
+## bench-ctx131k.txt
+ctx131k r1 p0: gen 512 tok @ 78.6 t/s, accept 267/486
+ctx131k r1 p1: gen 512 tok @ 91.5 t/s, accept 333/355
+ctx131k r1 p2: gen 340 tok @ 91.8 t/s, accept 188/304
+ctx131k r1 p3: gen 404 tok @ 52.6 t/s, accept 232/342
+ctx131k r1 p4: gen 512 tok @ 95.4 t/s, accept 330/362
+ctx131k r2 p0: gen 512 tok @ 87.6 t/s, accept 265/490
+ctx131k r2 p1: gen 512 tok @ 112.2 t/s, accept 327/366
+ctx131k r2 p2: gen 289 tok @ 95.0 t/s, accept 165/246
+ctx131k r2 p3: gen 391 tok @ 97.8 t/s, accept 218/344
+ctx131k r2 p4: gen 512 tok @ 114.8 t/s, accept 332/357
+ctx131k SUMMARY  first pass median 91.5 t/s | second pass median 97.8 t/s | best 114.8

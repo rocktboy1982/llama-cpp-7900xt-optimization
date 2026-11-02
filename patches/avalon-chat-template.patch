@@ -1,0 +1,21 @@
+--- a/chat-template.jinja
++++ b/chat-template.jinja
+@@ -45,6 +45,9 @@
+ {%- set reasoning_instructions = '' %}
+ {%- if enable_thinking is undefined or enable_thinking is true %}
+     {%- set resolved_reasoning_effort = reasoning_effort|default('xhigh') %}
++    {%- if resolved_reasoning_effort in ('high', 'max') %}
++        {%- set resolved_reasoning_effort = 'xhigh' %}
++    {%- endif %}
+     {%- if resolved_reasoning_effort not in ('xhigh', 'medium', 'low') %}
+         {{- raise_exception('Unexpected reasoning effort ' ~ reasoning_effort ~ '. Supported types are xhigh (default), medium, and low.') }}
+     {%- endif %}
+@@ -103,7 +106,7 @@
+     {%- set content = render_content(message.content, true)|trim %}
+     {%- if message.role == "system" %}
+         {%- if not loop.first %}
+-            {{- raise_exception('System message must be at the beginning.') }}
++            {{- '<|im_start|>system\n' + render_content(message.content, false, true)|trim + '<|im_end|>\n' }}
+         {%- endif %}
+     {%- elif message.role == "user" %}
+         {{- '<|im_start|>' + message.role + '\n' + content + '<|im_end|>' + '\n' }}
