@@ -1,5 +1,7 @@
 # Benchmarks and test results
 
+This document covers the **27B dense model** (llama.cpp and TabbyAPI). The later 125B MoE results with Avalon are in [`avalon-guide.md`](avalon-guide.md).
+
 Every number here was measured on one machine between 2026-10-05 01:00 and 05:00 (EEST). Raw result files are in [`../data`](../data) and the harness that produced them is in [`../bench`](../bench). Nothing is estimated unless it is marked *estimate*.
 
 ## 1. Test machine

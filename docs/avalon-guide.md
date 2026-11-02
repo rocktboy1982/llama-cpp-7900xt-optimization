@@ -44,7 +44,7 @@ Over 17 requests from opencode and Copilot CLI before a reboot: decode median ~7
 
 ### 1.4 `ngram-simple` next to MTP (2026-11-03)
 
-Taken from this repository's llama.cpp setup, where MTP + `ngram-simple` raised code edits from 98 to 175 t/s on the 27B. Avalon accepts the same list: `--spec-type ngram-simple,draft-mtp`. Two workloads, back to back, same server flags otherwise: Avalon's `bench.py` (new text) and a code-edit test (return a 180-line Python file with a rename, or with docstrings added; 1,500 tokens, 2 rounds).
+Taken from this repository's llama.cpp setup, where adding `ngram-simple` to MTP raised code edits from 85 to 175 t/s on the 27B. Avalon accepts the same list: `--spec-type ngram-simple,draft-mtp`. Two workloads, back to back, same server flags otherwise: Avalon's `bench.py` (new text) and a code-edit test (return a 180-line Python file with a rename, or with docstrings added; 1,500 tokens, 2 rounds).
 
 | Workload | `draft-mtp` (Avalon default) | `ngram-simple,draft-mtp` |
 |---|---:|---:|
@@ -140,12 +140,20 @@ Loading takes about 80 s (`listening on` in the log). VRAM use is 19.7 GiB of 20
 * **Keep opencode's `small_model` (session titles) off Avalon.** `--parallel 1` gives one slot, so the title request waits for the main answer and can hit opencode's 300 s header timeout on a long reply. Point `small_model` at another provider. `--parallel 2` would also work, but Avalon's README advises one slot so the KV pool is not split.
 * **Copilot CLI**: an OpenAI-compatible provider on the same URL; pick `high` or `xhigh` in the reasoning picker.
 
-## 3. Why prefill is fast and decode is slower
+## 3. How it works, and why prefill is fast and decode is slower
 
-Before the first output token the server reads the whole prompt (prefill); then it produces one token at a time (decode). With the experts in RAM, every expert a token needs has to cross PCIe to the GPU.
+Before the first output token the server reads the whole prompt (prefill); then it produces one token at a time (decode). Per token, the model routes each of its 48 layers to 10 of 512 experts. Avalon splits the work this way (from its README):
 
-* **Prefill** runs 9,536 tokens per batch (`-ub 9536`), so each expert copied over PCIe is used for thousands of tokens. That is why it is ~17x faster than decode. JashicTM found that 13,312 and above fail with `failed to allocate compute pp buffers`; 9,536 is the safe maximum.
-* **Decode** uses each copied expert for one token. Avalon's GPU expert cache, its expert prefetch and the MTP draft head (about 2.2-2.8 tokens per step) are what get it to ~100 t/s on PCIe Gen3. When the answer repeats text from the prompt (code edits), `ngram-simple` drafts whole runs of it, so each expensive step yields more tokens (1.4).
+* the **GPU** holds the dense weights (~4.6 GiB), the KV cache and a cache of the most-used experts (9-14 GiB on a 7900 XT, sized automatically from whatever VRAM is free);
+* the **CPU** computes, with AVX2 kernels and straight from RAM, the experts a token needs that are not in the GPU cache, at the same time as the GPU computes the cached ones;
+* **PCIe** carries experts to the GPU: during prefill it prefetches the next layers' experts, during decode it moves the experts the dispatcher decides are worth caching.
+
+That gives the two speeds:
+
+* **Prefill** runs 9,536 tokens per batch (`-ub 9536`). In such a batch nearly every expert is needed by many tokens, so it pays to bring the expert to the GPU once (prefetched while the GPU works on the previous layer) and use it for all of them. That is why prefill is ~17x faster than decode. JashicTM found that 13,312 and above fail with `failed to allocate compute pp buffers`; 9,536 is the safe maximum.
+* **Decode** handles one token (plus 2 MTP draft tokens) per step, so an expert missing from the GPU is cheaper to compute on the CPU than to copy. Speed is set by the GPU cache hit rate, RAM bandwidth and the CPU for the misses. The MTP draft head (about 2.2-2.8 tokens accepted per step) shares the main model's expert cache. When the answer repeats text from the prompt (code edits), `ngram-simple` drafts whole runs of it, so each step yields more tokens (1.4).
+* **Why more VRAM did not help (1.5):** freeing 0.75-1.2 GiB only grew an expert cache that already holds the experts most tokens use; the extra experts are rarely hit.
+* **Why the first session is slow:** the model file (~89 GiB) is memory-mapped. With 57 GB of RAM, the experts that are not yet in the page cache are read from disk the first time a token needs them.
 * **The prompt cache matters most for agents.** With `--parallel 1` the processed conversation stays in the slot, so each turn reads only the new part: in the agent session above, 69 % of every follow-up prompt came from the cache and the first token took about 4 s instead of the 8-9 s a fresh 14k prompt would need.
 * **Toolchain**: the matrix work runs in rocBLAS/hipBLASLt, so the ROCm version can halve prefill (7.10a did). ROCm 10 is fine.
 * **Power**: JashicTM measured +3 % prefill at 274 W against the 246 W default (junction 79 °C). Not tried here.
